@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BunCOP - Sistem Deteksi & Monitoring Pakcoy</title>
+  <style>
+    :root {
+      --primary: #10b981;
+      --primary-dark: #059669;
+      --accent: #3b82f6;
+      --accent-dark: #2563eb;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --normal: #22c55e;
+      --ringan: #f59e0b;
+      --berat: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; padding: 15px 10px; }
+    .container { max-width: 1440px; margin: 0 auto; }
+    
+    /* Header */
+    header { text-align: center; margin-bottom: 15px; padding: 18px; background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    header h1 { font-size: 1.8rem; color: var(--primary); display: flex; align-items: center; justify-content: center; gap: 10px; }
+    header p { color: var(--text-muted); font-size: 0.95rem; margin-top: 4px; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; background: rgba(16, 185, 129, 0.15); color: var(--primary); border: 1px solid var(--primary); margin-top: 8px; }
+
+    /* Server URL Config Bar (Khusus saat di-deploy di Vercel / GitHub) */
+    .server-config-bar { display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border); border-radius: 12px; padding: 8px 16px; margin-bottom: 20px; flex-wrap: wrap; }
+    .server-config-bar input { background: #1e293b; border: 1px solid #475569; border-radius: 8px; color: #fff; padding: 6px 12px; font-size: 0.85rem; width: 260px; font-family: monospace; outline: none; }
+    .server-config-bar input:focus { border-color: var(--primary); }
+    .server-status-pill { font-size: 0.75rem; font-weight: 700; color: var(--primary); background: rgba(16, 185, 129, 0.15); padding: 4px 10px; border-radius: 12px; border: 1px solid var(--primary); }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 12px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-btn { background: var(--card-bg); border: 2px solid var(--border); color: var(--text-muted); padding: 12px 24px; border-radius: 12px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+    .tab-btn:hover { border-color: var(--primary); color: var(--text); }
+    .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4); }
+
+    /* Layout */
+    .main-layout { display: grid; grid-template-columns: 1fr; gap: 20px; }
+    @media (min-width: 1024px) { .main-layout { grid-template-columns: 360px 1fr; } }
+
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+
+    /* HP Camera Banner */
+    .hp-cam-banner { background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(239, 68, 68, 0.15)); border: 1px solid #f59e0b; border-radius: 12px; padding: 12px; margin-bottom: 15px; text-align: center; }
+    .btn-camera-hp { width: 100%; background: #f59e0b; color: #000; font-weight: 800; font-size: 0.95rem; padding: 12px; border-radius: 10px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3); }
+    .btn-camera-hp:hover { background: #d97706; }
+
+    /* View Container */
+    .view-container { position: relative; width: 100%; min-height: 280px; background: #000; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--border); transition: border-color 0.2s; }
+    .view-container.dragover { border-color: var(--primary); background: rgba(16, 185, 129, 0.05); }
+
+    #previewImg { width: 100%; height: auto; max-height: 380px; object-fit: contain; }
+
+    /* Native Label Dropzone */
+    .dropzone { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; cursor: pointer; padding: 25px 15px; user-select: none; text-align: center; }
+    .dropzone-icon { font-size: 2.8rem; }
+    .btn-choose-file { background: #334155; color: #fff; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; border: 1px solid #475569; pointer-events: none; margin-top: 4px; }
+
+    #fileInput, #cameraMobileInput { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+    /* Controls */
+    .controls { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+    .btn { width: 100%; padding: 12px 16px; border: none; border-radius: 10px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
+    .btn-snap { background: var(--primary); color: #fff; }
+    .btn-snap:hover { background: var(--primary-dark); }
+    .btn-demo { background: var(--accent); color: #fff; }
+    .btn-demo:hover { background: var(--accent-dark); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Results Grid: 2 Columns for Side-by-Side Comparison */
+    .results-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+    @media (min-width: 900px) { .results-grid { grid-template-columns: 1fr 1fr; } }
+
+    .result-box { background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; }
+    .result-box-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .model-tag { padding: 4px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; }
+    .tag-lama { background: rgba(16, 185, 129, 0.2); color: var(--primary); border: 1px solid var(--primary); }
+    .tag-baru { background: rgba(245, 158, 11, 0.2); color: var(--ringan); border: 1px solid var(--ringan); }
+
+    /* Image Display Area: Sharp & Flexible Height */
+    .img-display-area { width: 100%; min-height: 480px; max-height: 650px; background: #050a14; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); }
+    .img-display-area img { width: 100%; height: auto; max-height: 650px; object-fit: contain; }
+
+    /* Highlight Banner for Seedling vs Tray counts */
+    .highlight-counts { display: flex; gap: 8px; margin-top: 12px; }
+    .count-pill { flex: 1; padding: 10px 8px; border-radius: 10px; text-align: center; }
+    .count-pill-bibit { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--primary); }
+    .count-pill-lubang { background: rgba(56, 189, 248, 0.12); border: 1px solid #38bdf8; }
+
+    /* Metrics Cards Grid */
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+    .metric-card { background: rgba(15, 23, 42, 0.6); padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+    .metric-val { font-size: 1.15rem; font-weight: 800; }
+    .metric-sub { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+    .metric-label { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; font-weight: 700; }
+
+    .val-normal { color: var(--normal); }
+    .val-ringan { color: var(--ringan); }
+    .val-berat { color: var(--berat); }
+    .val-kosong { color: #94a3b8; }
+
+    /* Terminal-style Summary Box */
+    .rekap-terminal { background: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.78rem; line-height: 1.5; color: #94a3b8; }
+    .rekap-terminal strong { color: #f8fafc; }
+
+    /* Loading Spinner Overlay */
+    .spinner-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; z-index: 999; }
+    .spinner { width: 52px; height: 52px; border: 5px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-download-small { background: #334155; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; text-decoration: none; border: 1px solid #475569; cursor: pointer; }
+    .btn-download-small:hover { background: #475569; }
+  </style>
+</head>
+<body>
+
+<!-- Spinner Global -->
+<div class="spinner-overlay" id="spinnerOverlay">
+  <div class="spinner"></div>
+  <p id="spinnerText" style="font-weight: 700; font-size: 1.1rem; color: #fff;">Sedang Menganalisis dengan 2 Model AI...</p>
+</div>
+
+<div class="container">
+  <header>
+    <h1>🌿 BunCOP Smart Vision</h1>
+    <p>Sistem Deteksi & Monitoring Etiolasi Pakcoy (Dual-Model Real-Time)</p>
+    <span class="badge">Model: YOLOv11 + MobileNetV2 (Stabil & Sensitif)</span>
+  </header>
+
+  <!-- Server API Config Bar -->
+  <div class="server-config-bar">
+    <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">⚙️ URL Server Laptop:</span>
+    <input type="text" id="serverUrlInput" placeholder="http://192.168.100.9:5000" onchange="saveServerUrl(this.value)">
+    <span id="serverStatusBadge" class="server-status-pill">● Server Siap</span>
+  </div>
+
+  <!-- Navigation Mode Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" id="tabTop" onclick="switchMode('top')">
+      📷 Mode 1: Deteksi Baki Atas (Dual Model Sekaligus)
+    </button>
+    <button class="tab-btn" id="tabSide" onclick="switchMode('side')">
+      📏 Mode 2: Ukur Tinggi Samping (Auto-Baseline)
+    </button>
+  </div>
+
+  <div class="main-layout">
+    <!-- PANEL KIRI: INPUT FOTO & KAMERA -->
+    <div class="card">
+      <div class="card-title">
+        <span id="panelTitle">Input Foto Baki</span>
+        <span style="font-size: 0.78rem; color: var(--primary); font-weight: 600;">● Siap Diproses</span>
+      </div>
+
+      <!-- Khusus Kamera HP: Native Camera Input -->
+      <div class="hp-cam-banner">
+        <div style="font-size: 0.8rem; font-weight: 700; color: #f59e0b; margin-bottom: 6px;">📱 Untuk Akses dari HP:</div>
+        <button class="btn-camera-hp" onclick="document.getElementById('cameraMobileInput').click()">
+          📸 Buka Kamera HP & Ambil Foto
+        </button>
+        <input type="file" id="cameraMobileInput" accept="image/*" capture="environment">
+      </div>
+
+      <!-- Area Dropzone / Upload dari File -->
+      <div class="view-container" id="viewContainer">
+        <label class="dropzone" id="dropzone" for="fileInput">
+          <div class="dropzone-icon" id="dropIcon">📥</div>
+          <p id="dropText" style="font-weight: 700; font-size: 1rem;">Klik untuk Pilih Foto dari File</p>
+          <span id="dropSubText" style="font-size: 0.78rem; color: var(--text-muted);">atau seret (drag & drop) foto ke sini</span>
+          <div class="btn-choose-file" id="btnChooseFile">📂 Jelajahi File Foto</div>
+          <img id="previewImg" style="display: none;" alt="Preview Foto">
+        </label>
+        <input type="file" id="fileInput" accept="image/*">
+      </div>
+
+      <!-- Tombol Aksi -->
+      <div class="controls">
+        <button class="btn btn-demo" id="btnLoadDemo" onclick="loadSampleImage()">
+          🧪 Coba Foto Contoh (1 Klik)
+        </button>
+        <button class="btn btn-snap" id="btnProcess" onclick="processSelectedImage()">
+          ⚡ Proses Analisis Sekarang
+        </button>
+      </div>
+    </div>
+
+    <!-- PANEL KANAN: DUA HASIL BERDAMPINGAN -->
+    <div class="card">
+      <div class="card-title">
+        <span id="resultsTitle">Hasil Perbandingan 2 Model Sekaligus (Side-by-Side)</span>
+      </div>
+
+      <!-- Container jika Belum Ada Hasil -->
+      <div id="emptyPlaceholder" style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+        <div style="font-size: 3rem; margin-bottom: 10px;">📊</div>
+        <p style="font-size: 1.05rem; font-weight: 600;">Belum Ada Analisis yang Dijalankan</p>
+        <span style="font-size: 0.85rem;">Ambil foto dari HP atau klik tombol <strong>"🧪 Coba Foto Contoh"</strong> untuk langsung melihat hasilnya berdampingan di sini.</span>
+      </div>
+
+      <!-- Grid Hasil Dual Model (Top-View) -->
+      <div class="results-grid" id="dualResultsGrid" style="display: none;">
+        <!-- Kolom Kiri: Model Stabil (Lama) -->
+        <div class="result-box">
+          <div class="result-box-header">
+            <div>
+              <span class="model-tag tag-lama">VERSI 1: STABIL</span>
+              <span style="font-size: 0.8rem; font-weight: 700; margin-left: 6px;">Model Lama</span>
+            </div>
+            <button class="btn-download-small" onclick="downloadImage('lama')">💾 Unduh</button>
+          </div>
+          <div class="img-display-area">
+            <img id="imgLama" alt="Hasil Model Lama">
+          </div>
+
+          <!-- Highlight Jumlah Bibit vs Lubang Semai -->
+          <div class="highlight-counts">
+            <div class="count-pill count-pill-bibit">
+              <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);" id="totalBibitLama">0</div>
+              <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">Total Daun Bibit</div>
+            </div>
+            <div class="count-pill count-pill-lubang">
+              <div style="font-size: 1.25rem; font-weight: 800; color: #38bdf8;" id="totalLubangLama">0</div>
+              <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">Total Lubang Semai</div>
+            </div>
+          </div>
+
+          <!-- Detail Status Lubang Semai -->
+          <div class="metrics">
+            <div class="metric-card">
+              <div class="metric-val val-normal" id="normalLama">0</div>
+              <div class="metric-sub" id="normalPctLama">0%</div>
+              <div class="metric-label">Normal</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val val-ringan" id="ringanLama">0</div>
+              <div class="metric-sub" id="ringanPctLama">0%</div>
+              <div class="metric-label">Et. Ringan</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val val-berat" id="beratLama">0</div>
+              <div class="metric-sub" id="beratPctLama">0%</div>
+              <div class="metric-label">Et. Berat</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val val-kosong" id="kosongLama">0</div>
+              <div class="metric-sub" id="kosongPctLama">0%</div>
+              <div class="metric-label">Kosong</div>
+            </div>
+          </div>
+
+          <!-- Terminal Output Box -->
+          <div class="rekap-terminal" id="terminalBoxLama"></div>
+        </div>
+
+        <!-- Kolom Kanan: Model Sensitif (Baru) -->
+        <div class="result-box">
+          <div class="result-box-header">
+            <div>
+              <span class="model-tag tag-baru">VERSI 2: SENSITIF</span>
+              <span style="font-size: 0.8rem; font-weight: 700; margin-left: 6px;">Model Baru</span>
+            </div>
+            <button class="btn-download-small" onclick="downloadImage('baru')">💾 Unduh</button>
+          </div>
+          <div class="img-display-area">
+            <img id="imgBaru" alt="Hasil Model Baru">
+          </div>
+
+          <!-- Highlight Jumlah Bibit vs Lubang Semai -->
+          <div class="highlight-counts">
+            <div class="count-pill count-pill-bibit">
+              <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);" id="totalBibitBaru">0</div>
+              <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">Total Daun Bibit</div>
+            </div>
+            <div class="count-pill count-pill-lubang">
+              <div style="font-size: 1.25rem; font-weight: 800; color: #38bdf8;" id="totalLubangBaru">0</div>
+              <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">Total Lubang Semai</div>
+            </div>
+          </div>
+
+          <!-- Detail Status Lubang Semai -->
+          <div class="metrics">
+            <div class="metric-card">
+              <div class="metric-val val-normal" id="normalBaru">0</div>
+              <div class="metric-sub" id="normalPctBaru">0%</div>
+              <div class="metric-label">Normal</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val val-ringan" id="ringanBaru">0</div>
+              <div class="metric-sub" id="ringanPctBaru">0%</div>
+              <div class="metric-label">Et. Ringan</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val val-berat" id="beratBaru">0</div>
+              <div class="metric-sub" id="beratPctBaru">0%</div>
+              <div class="metric-label">Et. Berat</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val val-kosong" id="kosongBaru">0</div>
+              <div class="metric-sub" id="kosongPctBaru">0%</div>
+              <div class="metric-label">Kosong</div>
+            </div>
+          </div>
+
+          <!-- Terminal Output Box -->
+          <div class="rekap-terminal" id="terminalBoxBaru"></div>
+        </div>
+      </div>
+
+      <!-- Container Single Result (Khusus Mode 2: Samping) -->
+      <div id="sideResultContainer" style="display: none;">
+        <div class="result-box">
+          <div class="result-box-header">
+            <div>
+              <span class="model-tag tag-lama">PENGUKURAN TINGGI (12 KOLOM)</span>
+              <span style="font-size: 0.85rem; font-weight: 700; margin-left: 8px;">Auto-Baseline & Tinggi Fisik (cm)</span>
+            </div>
+            <button class="btn-download-small" onclick="downloadImage('side')">💾 Unduh</button>
+          </div>
+          <div class="img-display-area" style="min-height: 400px;">
+            <img id="imgSide" alt="Hasil Pengukuran Samping">
+          </div>
+          <div class="metrics">
+            <div class="metric-card">
+              <div class="metric-val val-total" id="totalSide">12</div>
+              <div class="metric-label">Kolom Semai</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val val-normal" id="normalSide">0</div>
+              <div class="metric-label">Normal (<3.5cm)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val val-ringan" id="ringanSide">0</div>
+              <div class="metric-label">Et. Ringan (3.5-5cm)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val val-berat" id="beratSide">0</div>
+              <div class="metric-label">Et. Berat (>5cm)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentMode = 'top';
+  let selectedFileBase64 = null;
+  let resultsData = {};
+
+  const previewImg = document.getElementById('previewImg');
+  const viewContainer = document.getElementById('viewContainer');
+  const fileInput = document.getElementById('fileInput');
+  const cameraMobileInput = document.getElementById('cameraMobileInput');
+  const spinner = document.getElementById('spinnerOverlay');
+  const serverUrlInput = document.getElementById('serverUrlInput');
+
+  // CONFIG BASE URL (Mendukung Vercel, GitHub Pages, dan Localhost)
+  function getApiBaseUrl() {
+    const saved = localStorage.getItem('buncop_server_url');
+    if (saved && saved.trim()) {
+      return saved.trim().replace(/\/+$/, '');
+    }
+    // Jika dibuka langsung dari Flask server
+    if (window.location.port === '5000' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return window.location.origin;
+    }
+    // Default fallback untuk Vercel (IP WiFi Laptop Anda)
+    return 'http://192.168.100.9:5000';
+  }
+
+  function saveServerUrl(url) {
+    if (url && url.trim()) {
+      localStorage.setItem('buncop_server_url', url.trim());
+    } else {
+      localStorage.removeItem('buncop_server_url');
+    }
+  }
+
+  // Load URL ke input saat halaman dibuka
+  window.addEventListener('DOMContentLoaded', () => {
+    serverUrlInput.value = getApiBaseUrl();
+  });
+
+  // 1. DRAG AND DROP
+  ['dragenter', 'dragover'].forEach(eventName => {
+    viewContainer.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      viewContainer.classList.add('dragover');
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    viewContainer.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      viewContainer.classList.remove('dragover');
+    }, false);
+  });
+
+  viewContainer.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    if (dt.files && dt.files.length > 0) {
+      handleIncomingFile(dt.files[0]);
+    }
+  });
+
+  fileInput.addEventListener('change', function() {
+    if (this.files && this.files.length > 0) {
+      handleIncomingFile(this.files[0]);
+    }
+  });
+
+  cameraMobileInput.addEventListener('change', function() {
+    if (this.files && this.files.length > 0) {
+      handleIncomingFile(this.files[0]);
+    }
+  });
+
+  function handleIncomingFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      selectedFileBase64 = e.target.result;
+      previewImg.src = selectedFileBase64;
+      previewImg.style.display = 'block';
+      document.getElementById('dropIcon').style.display = 'none';
+      document.getElementById('dropText').style.display = 'none';
+      document.getElementById('dropSubText').style.display = 'none';
+      document.getElementById('btnChooseFile').style.display = 'none';
+      processSelectedImage();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // 2. FOTO CONTOH (DEMO)
+  async function loadSampleImage() {
+    spinner.style.display = 'flex';
+    document.getElementById('spinnerText').innerText = 'Mengambil Foto Contoh Uji...';
+    try {
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/api/sample_image?mode=${currentMode}`);
+      const data = await res.json();
+      if (data.success) {
+        selectedFileBase64 = data.image;
+        previewImg.src = data.image;
+        previewImg.style.display = 'block';
+        document.getElementById('dropIcon').style.display = 'none';
+        document.getElementById('dropText').style.display = 'none';
+        document.getElementById('dropSubText').style.display = 'none';
+        document.getElementById('btnChooseFile').style.display = 'none';
+        processSelectedImage();
+      } else {
+        alert('Foto contoh tidak ditemukan di server.');
+      }
+    } catch (err) {
+      alert(`Gagal terhubung ke Server AI Laptop di (${getApiBaseUrl()}). Pastikan python app_web_pakcoy.py di laptop sudah berjalan!`);
+    } finally {
+      spinner.style.display = 'none';
+    }
+  }
+
+  // 3. SWITCH TAB MODE
+  function switchMode(mode) {
+    currentMode = mode;
+    document.getElementById('tabTop').classList.toggle('active', mode === 'top');
+    document.getElementById('tabSide').classList.toggle('active', mode === 'side');
+    document.getElementById('panelTitle').innerText = (mode === 'top') ? 'Input Foto Baki (Top-View)' : 'Input Foto Samping (Side-View)';
+    document.getElementById('resultsTitle').innerText = (mode === 'top') ? 'Hasil Perbandingan 2 Model Sekaligus (Side-by-Side)' : 'Hasil Pengukuran Tinggi 12 Bibit Samping';
+
+    selectedFileBase64 = null;
+    previewImg.style.display = 'none';
+    document.getElementById('dropIcon').style.display = 'block';
+    document.getElementById('dropText').style.display = 'block';
+    document.getElementById('dropSubText').style.display = 'block';
+    document.getElementById('btnChooseFile').style.display = 'block';
+    document.getElementById('emptyPlaceholder').style.display = 'block';
+    document.getElementById('dualResultsGrid').style.display = 'none';
+    document.getElementById('sideResultContainer').style.display = 'none';
+  }
+
+  // 4. PROSES ANALISIS KE SERVER
+  async function processSelectedImage() {
+    if (!selectedFileBase64) {
+      alert('Silakan pilih foto terlebih dahulu, jepret dari kamera HP, atau klik "🧪 Coba Foto Contoh"!');
+      return;
+    }
+
+    spinner.style.display = 'flex';
+    document.getElementById('spinnerText').innerText = (currentMode === 'top') 
+      ? 'Memproses dengan 2 Model AI Sekaligus (Lama & Baru)...' 
+      : 'Mengukur Tinggi Fisik 12 Bibit Otomatis...';
+    document.getElementById('btnProcess').disabled = true;
+
+    try {
+      const baseUrl = getApiBaseUrl();
+      const endpoint = (currentMode === 'top') ? `${baseUrl}/api/predict_top` : `${baseUrl}/api/predict_side`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: selectedFileBase64 })
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        alert('Gagal memproses gambar: ' + (data.error || 'Unknown error'));
+        return;
+      }
+
+      resultsData = data;
+      document.getElementById('emptyPlaceholder').style.display = 'none';
+
+      if (currentMode === 'top') {
+        document.getElementById('dualResultsGrid').style.display = 'grid';
+        document.getElementById('sideResultContainer').style.display = 'none';
+
+        // UPDATE MODEL LAMA (STABIL) - PERSIS TERMINAL
+        if (data.lama) {
+          const m = data.lama.metrics;
+          document.getElementById('imgLama').src = data.lama.result_image;
+          document.getElementById('totalBibitLama').innerText = m.total_bibit;
+          document.getElementById('totalLubangLama').innerText = m.total_lubang;
+          document.getElementById('normalLama').innerText = m.normal;
+          document.getElementById('normalPctLama').innerText = m.normal_pct;
+          document.getElementById('ringanLama').innerText = m.etiolasi_ringan;
+          document.getElementById('ringanPctLama').innerText = m.ringan_pct;
+          document.getElementById('beratLama').innerText = m.etiolasi_berat;
+          document.getElementById('beratPctLama').innerText = m.berat_pct;
+          document.getElementById('kosongLama').innerText = m.kosong;
+          document.getElementById('kosongPctLama').innerText = m.kosong_pct;
+
+          document.getElementById('terminalBoxLama').innerHTML = `
+            • <strong>REKAPITULASI PERSIS TERMINAL</strong><br>
+            - Total Daun Bibit &nbsp;&nbsp;&nbsp;: <strong>${m.total_bibit}</strong> Tanaman<br>
+            - Total Lubang Semai &nbsp;: <strong>${m.total_lubang}</strong> Lubang<br>
+            - Tanaman Normal &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <strong>${m.normal}</strong> (${m.normal_pct})<br>
+            - Etiolasi Ringan &nbsp;&nbsp;&nbsp;&nbsp;: <strong>${m.etiolasi_ringan}</strong> (${m.ringan_pct})<br>
+            - Etiolasi Berat &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <strong>${m.etiolasi_berat}</strong> (${m.berat_pct})<br>
+            - Lubang Kosong/Tanah : <strong>${m.kosong}</strong> (${m.kosong_pct})
+          `;
+        }
+
+        // UPDATE MODEL BARU (SENSITIF) - PERSIS TERMINAL
+        if (data.baru) {
+          const m = data.baru.metrics;
+          document.getElementById('imgBaru').src = data.baru.result_image;
+          document.getElementById('totalBibitBaru').innerText = m.total_bibit;
+          document.getElementById('totalLubangBaru').innerText = m.total_lubang;
+          document.getElementById('normalBaru').innerText = m.normal;
+          document.getElementById('normalPctBaru').innerText = m.normal_pct;
+          document.getElementById('ringanBaru').innerText = m.etiolasi_ringan;
+          document.getElementById('ringanPctBaru').innerText = m.ringan_pct;
+          document.getElementById('beratBaru').innerText = m.etiolasi_berat;
+          document.getElementById('beratPctBaru').innerText = m.berat_pct;
+          document.getElementById('kosongBaru').innerText = m.kosong;
+          document.getElementById('kosongPctBaru').innerText = m.kosong_pct;
+
+          document.getElementById('terminalBoxBaru').innerHTML = `
+            • <strong>REKAPITULASI PERSIS TERMINAL</strong><br>
+            - Total Daun Bibit &nbsp;&nbsp;&nbsp;: <strong>${m.total_bibit}</strong> Tanaman<br>
+            - Total Lubang Semai &nbsp;: <strong>${m.total_lubang}</strong> Lubang<br>
+            - Tanaman Normal &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <strong>${m.normal}</strong> (${m.normal_pct})<br>
+            - Etiolasi Ringan &nbsp;&nbsp;&nbsp;&nbsp;: <strong>${m.etiolasi_ringan}</strong> (${m.ringan_pct})<br>
+            - Etiolasi Berat &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <strong>${m.etiolasi_berat}</strong> (${m.berat_pct})<br>
+            - Lubang Kosong/Tanah : <strong>${m.kosong}</strong> (${m.kosong_pct})
+          `;
+        }
+
+      } else {
+        // Mode Samping
+        document.getElementById('dualResultsGrid').style.display = 'none';
+        document.getElementById('sideResultContainer').style.display = 'block';
+
+        if (data.side) {
+          document.getElementById('imgSide').src = data.side.result_image;
+          document.getElementById('normalSide').innerText = data.side.metrics.normal;
+          document.getElementById('ringanSide').innerText = data.side.metrics.etiolasi_ringan;
+          document.getElementById('beratSide').innerText = data.side.metrics.etiolasi_berat;
+        }
+      }
+
+    } catch (err) {
+      alert(`Gagal terhubung ke Server AI di (${getApiBaseUrl()}). Pastikan python app_web_pakcoy.py di laptop sedang berjalan!`);
+    } finally {
+      spinner.style.display = 'none';
+      document.getElementById('btnProcess').disabled = false;
+    }
+  }
+
+  function downloadImage(type) {
+    let src = null;
+    let filename = `hasil_${type}_${Date.now()}.jpg`;
+
+    if (type === 'lama' && resultsData.lama) src = resultsData.lama.result_image;
+    else if (type === 'baru' && resultsData.baru) src = resultsData.baru.result_image;
+    else if (type === 'side' && resultsData.side) src = resultsData.side.result_image;
+
+    if (!src) return;
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = filename;
+    a.click();
+  }
+</script>
+
+</body>
+</html>
