@@ -138,7 +138,7 @@
   <!-- Server API Config Bar -->
   <div class="server-config-bar">
     <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">⚙️ URL Server Laptop:</span>
-    <input type="text" id="serverUrlInput" placeholder="http://192.168.100.9:5000" onchange="saveServerUrl(this.value)">
+    <input type="text" id="serverUrlInput" placeholder="https://president-bathroom-emotional-immigrants.trycloudflare.com" onchange="saveServerUrl(this.value)">
     <span id="serverStatusBadge" class="server-status-pill">● Server Siap</span>
   </div>
 
@@ -374,8 +374,8 @@
     if (window.location.port === '5000' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       return window.location.origin;
     }
-    // Default fallback untuk Vercel (IP WiFi Laptop Anda)
-    return 'http://192.168.100.9:5000';
+    // Default fallback untuk Vercel (Cloudflare Tunnel HTTPS)
+    return 'https://president-bathroom-emotional-immigrants.trycloudflare.com';
   }
 
   function saveServerUrl(url) {
